@@ -1,0 +1,4 @@
+# Pylint configuration to suppress import warnings for dynamic imports
+[MESSAGES CONTROL]
+disable=import-error,no-name-in-module
+

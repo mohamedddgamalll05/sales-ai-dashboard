@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Profile</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="top-nav">
+  <div class="brand">Sales AI Dashboard</div>
+  <div class="nav-links">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="predict.html">AI Insights</a>
+    <a href="profile.html" class="active">Profile</a>
+    <a href="login.html" onclick="localStorage.removeItem('user')">Logout</a>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="card profile-card">
+    <h2>Your Profile</h2>
+
+    <div id="profileInfo" class="profile-info">
+      <!-- Filled by loadProfile() -->
+      <p>Loading your profile...</p>
+    </div>
+
+    <hr>
+    <p class="warning-text">
+      Deleting your account is permanent and will also remove all your predictions.
+    </p>
+    <button class="btn danger" id="deleteBtn">Delete Account</button>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

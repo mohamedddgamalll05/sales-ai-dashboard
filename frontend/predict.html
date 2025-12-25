@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Prediction</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="top-nav">
+  <div class="brand">Sales AI Dashboard</div>
+  <div class="nav-links">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="predict.html" class="active">AI Insights</a>
+    <a href="profile.html">Profile</a>
+    <a href="login.html" onclick="localStorage.removeItem('user')">Logout</a>
+  </div>
+</nav>
+
+<main class="page">
+  <div class="card predict-card">
+    <h2>AI Invoice Value Prediction</h2>
+    <p class="subtitle">Enter invoice details and let the model decide if it's a HIGH or LOW value invoice.</p>
+
+    <form id="predictForm" class="form">
+      <div class="form-row">
+        <label>Quantity</label>
+        <input name="quantity" type="number" min="1" step="1" placeholder="e.g. 5" required>
+      </div>
+      <div class="form-row">
+        <label>Sales Price</label>
+        <input name="sales_price" type="number" min="0" step="0.01" placeholder="e.g. 99.99" required>
+      </div>
+      <button type="submit" class="btn primary">Predict</button>
+    </form>
+
+    <div id="result" class="msg"></div>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

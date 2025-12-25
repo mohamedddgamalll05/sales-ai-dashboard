@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Analytics Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="top-nav">
+  <div class="brand">Sales AI Dashboard</div>
+  <div class="nav-links">
+    <span id="welcomeName" class="welcome"></span>
+    <a href="dashboard.html" class="active">Dashboard</a>
+    <a href="predict.html">AI Insights</a>
+    <a href="profile.html">Profile</a>
+    <a href="login.html" onclick="localStorage.removeItem('user')">Logout</a>
+  </div>
+</nav>
+
+<main class="page">
+  <section class="cards-row">
+    <div class="card stat-card">
+      <h2>Total Sales</h2>
+      <p class="stat-value"><span id="sales">0</span></p>
+    </div>
+    <div class="card stat-card">
+      <h2>Average Quantity</h2>
+      <p class="stat-value"><span id="avg">0</span></p>
+    </div>
+    <div class="card stat-card">
+      <h2>Median Quantity</h2>
+      <p class="stat-value"><span id="median">0</span></p>
+    </div>
+    <div class="card stat-card">
+      <h2>Invoices</h2>
+      <p class="stat-value"><span id="count">0</span></p>
+    </div>
+  </section>
+
+  <section class="charts-row">
+    <div class="card chart-card">
+      <h3>Top Items by Total Amount</h3>
+      <img id="itemSalesChart" alt="Top items chart" style="width: 100%; max-width: 100%; display: block;">
+    </div>
+    <div class="card chart-card">
+      <h3>Distribution of Invoice Amounts</h3>
+      <img id="amountDistChart" alt="Amount distribution chart" style="width: 100%; max-width: 100%; display: block;">
+    </div>
+  </section>
+
+  <section class="charts-row">
+    <div class="card chart-card">
+      <h3>Invoice Type Distribution (Pie Chart)</h3>
+      <img id="pieChart" alt="Category frequencies pie chart" style="width: 100%; max-width: 100%; display: block;">
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
