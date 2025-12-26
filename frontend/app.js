@@ -46,19 +46,53 @@ async function handleSignupSubmit(event) {
     password: formData.get("password"),
   };
 
-  const res = await fetch(`${API}/signup`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json();
   const msg = document.getElementById("msg");
+  
+  // Show loading message
+  if (msg) {
+    msg.textContent = "Creating account...";
+    msg.style.color = "#0d7377";
+  }
 
-  if (data.success) {
-    if (msg) msg.textContent = "Account created! Redirecting to login...";
-    setTimeout(() => window.location.replace("login.html"), 800);
-  } else {
-    if (msg) msg.textContent = data.message || "User already exists.";
+  try {
+    console.log("📝 Sending signup request to:", `${API}/signup`);
+    console.log("📝 Payload:", payload);
+    
+    const res = await fetch(`${API}/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    
+    console.log("📥 Response status:", res.status);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    
+    const data = await res.json();
+    console.log("📥 Response data:", data);
+
+    if (data.success) {
+      if (msg) {
+        msg.textContent = "✅ Account created! Redirecting to login...";
+        msg.style.color = "#14b8a6";
+      }
+      setTimeout(() => window.location.replace("login.html"), 800);
+    } else {
+      if (msg) {
+        msg.textContent = data.message || "❌ User already exists or signup failed.";
+        msg.style.color = "#dc3545";
+      }
+      console.error("❌ Signup failed:", data);
+    }
+  } catch (error) {
+    console.error("❌ Signup error:", error);
+    if (msg) {
+      msg.textContent = `❌ Error: ${error.message}. Make sure backend is running on ${API}`;
+      msg.style.color = "#dc3545";
+    }
+    alert(`Signup failed: ${error.message}\n\nMake sure:\n1. Backend is running (http://127.0.0.1:8000)\n2. Check browser console (F12) for details`);
   }
 }
 

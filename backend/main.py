@@ -1,6 +1,7 @@
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
@@ -9,21 +10,49 @@ from auth import get_user_by_id, login_user, signup_user
 from analytics import get_dashboard_data
 from ml import log_prediction, make_prediction
 from transactions import delete_user_and_predictions
-from database import dataset_col, models_col
+from database import dataset_col, models_col, client, users_col, predictions_col
+from indexes import create_indexes
+from aggregations import (
+    get_total_sales, get_average_quantity, get_median_amount,
+    get_top_items_by_amount, get_category_frequencies, get_distribution_stats,
+    get_predictions_by_model_version, get_users_with_most_predictions
+)
 
 # Suppress noisy cancellation errors during shutdown (these are harmless)
 logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.WARNING)
 
-app = FastAPI(title="Sales AI Dashboard API", version="1.0.0")
-
 # Thread pool for blocking operations
 executor = ThreadPoolExecutor(max_workers=2)
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events"""
+    # Startup
+    try:
+        # Test MongoDB connection on startup
+        client.admin.command('ping')
+        print("✅ MongoDB connection verified on startup")
+        
+        # Create indexes for optimal performance
+        print("📊 Creating MongoDB indexes...")
+        create_indexes()
+        print("✅ Indexes created successfully")
+    except Exception as e:
+        print(f"⚠️ Warning: MongoDB connection check failed on startup: {e}")
+        print("   The server will still start, but database operations may fail.")
+    
+    yield
+    
+    # Shutdown
     executor.shutdown(wait=False)
+    print("✅ Server shutdown complete")
+
+app = FastAPI(
+    title="Sales AI Dashboard API", 
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -51,12 +80,77 @@ class DeleteAccountInput(BaseModel):
     user_id: str
 
 # ---------------- ROUTES ----------------
+@app.get("/")
+def root():
+    """
+    Root endpoint - redirects to API documentation.
+    """
+    return {
+        "message": "Sales AI Dashboard API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/health",
+        "endpoints": {
+            "signup": "POST /signup",
+            "login": "POST /login",
+            "dashboard": "GET /dashboard",
+            "profile": "GET /profile/{user_id}",
+            "predict": "POST /predict",
+            "delete_account": "DELETE /delete-account",
+            "health": "GET /health",
+            "load_dataset": "POST /load-dataset",
+            "train_model": "POST /train-model"
+        }
+    }
+
 @app.post("/signup")
 def signup(data: Signup):
-    success = signup_user(data.name, data.email, data.password)
-    if not success:
-        return {"success": False, "message": "User already exists"}
-    return {"success": True}
+    """
+    Create a new user account.
+    """
+    try:
+        print(f"📝 Signup request received: email={data.email}, name={data.name}")
+        
+        # Verify database connection
+        try:
+            client.admin.command('ping')
+            print("✅ MongoDB connection verified")
+        except Exception as db_error:
+            print(f"❌ MongoDB connection error: {db_error}")
+            return {
+                "success": False,
+                "message": "Database connection failed. Please check your MongoDB connection.",
+                "error": str(db_error)
+            }
+        
+        # Attempt to create user
+        success = signup_user(data.name, data.email, data.password)
+        
+        if not success:
+            print(f"⚠️ Signup failed: User with email {data.email} already exists")
+            return {"success": False, "message": "User already exists"}
+        
+        print(f"✅ User created successfully: {data.email}")
+        
+        # Verify user was created
+        user = users_col.find_one({"email": data.email})
+        if user:
+            print(f"✅ Verified: User document exists in database with _id: {user.get('_id')}")
+        else:
+            print(f"⚠️ Warning: User document not found after creation")
+        
+        return {"success": True, "message": "Account created successfully"}
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"❌ Error in signup endpoint: {e}")
+        print(error_details)
+        return {
+            "success": False,
+            "message": "Failed to create account. Please try again.",
+            "error": str(e)
+        }
 
 @app.post("/login")
 def login(data: Login):
@@ -304,3 +398,159 @@ async def train_model_endpoint():
             "error": str(e),
             "details": error_details
         }
+
+
+# ---------------- AGGREGATION ENDPOINTS (BONUS) ----------------
+@app.get("/aggregations/total-sales")
+def aggregation_total_sales():
+    """
+    MongoDB Aggregation: Total sales (equivalent to pandas df['amount'].sum())
+    """
+    try:
+        result = get_total_sales()
+        return {"success": True, "data": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/aggregations/average-quantity")
+def aggregation_average_quantity():
+    """
+    MongoDB Aggregation: Average quantity (equivalent to pandas df['quantity'].mean())
+    """
+    try:
+        result = get_average_quantity()
+        return {"success": True, "data": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/aggregations/median-amount")
+def aggregation_median_amount():
+    """
+    MongoDB Aggregation: Median amount (equivalent to pandas df['amount'].median())
+    """
+    try:
+        result = get_median_amount()
+        return {"success": True, "data": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/aggregations/top-items")
+def aggregation_top_items(limit: int = 10):
+    """
+    MongoDB Aggregation: Top items by total amount
+    """
+    try:
+        result = get_top_items_by_amount(limit)
+        return {"success": True, "data": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/aggregations/category-frequencies")
+def aggregation_category_frequencies():
+    """
+    MongoDB Aggregation: Category frequencies (equivalent to pandas value_counts())
+    """
+    try:
+        result = get_category_frequencies()
+        return {"success": True, "data": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/aggregations/distribution-stats")
+def aggregation_distribution_stats():
+    """
+    MongoDB Aggregation: Distribution statistics (equivalent to pandas describe())
+    """
+    try:
+        result = get_distribution_stats()
+        return {"success": True, "data": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/aggregations/predictions-by-model")
+def aggregation_predictions_by_model():
+    """
+    MongoDB Aggregation: Count predictions by model version
+    """
+    try:
+        result = get_predictions_by_model_version()
+        return {"success": True, "data": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/aggregations/top-users-predictions")
+def aggregation_top_users_predictions(limit: int = 10):
+    """
+    MongoDB Aggregation: Users with most predictions
+    """
+    try:
+        result = get_users_with_most_predictions(limit)
+        return {"success": True, "data": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+# ---------------- INDEXING & EXPLAIN ENDPOINTS ----------------
+@app.get("/indexes/info")
+def indexes_info():
+    """
+    Get information about all indexes in the database.
+    """
+    try:
+        from indexes import get_index_info
+        indexes = get_index_info()
+        return {"success": True, "indexes": indexes}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/explain/query")
+def explain_query(
+    collection: str,
+    query_field: str = "email",
+    query_value: str = "test@test.com"
+):
+    """
+    Demonstrate explain() for query performance analysis.
+    Shows execution stats including index usage.
+    
+    Parameters:
+    - collection: users, predictions, or dataset
+    - query_field: Field to query on
+    - query_value: Value to search for
+    """
+    try:
+        # Select collection
+        if collection == "users":
+            col = users_col
+        elif collection == "predictions":
+            col = predictions_col
+        elif collection == "dataset":
+            col = dataset_col
+        else:
+            return {"success": False, "error": "Invalid collection. Use: users, predictions, or dataset"}
+        
+        # Build query
+        query = {query_field: query_value}
+        
+        # Get explain results
+        explain_result = col.find(query).explain("executionStats")
+        
+        # Extract key metrics
+        execution_stats = explain_result.get("executionStats", {})
+        execution_stages = execution_stats.get("executionStages", {})
+        
+        result = {
+            "collection": collection,
+            "query": query,
+            "execution_time_ms": execution_stats.get("executionTimeMillis", 0),
+            "total_docs_examined": execution_stats.get("totalDocsExamined", 0),
+            "total_docs_returned": execution_stats.get("nReturned", 0),
+            "stage": execution_stages.get("stage", "UNKNOWN"),
+            "index_used": execution_stages.get("indexName", "COLLSCAN (No index)"),
+            "full_explain": explain_result
+        }
+        
+        return {"success": True, "data": result}
+    except Exception as e:
+        import traceback
+        return {"success": False, "error": str(e), "traceback": traceback.format_exc()}

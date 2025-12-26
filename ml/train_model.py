@@ -1,9 +1,14 @@
 import io
+import sys
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 from joblib import dump
-from pymongo import MongoClient
+
+# Add parent directory to path to import database module
+sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
+from database import db, dataset_col, models_col
 
 # Delay sklearn import to avoid numpy compatibility issues
 try:
@@ -22,14 +27,10 @@ the serialized model inside the MongoDB `models` collection.
 
 This script is idempotent:
 - If the `dataset` collection is empty, it will bootstrap it from `../data/Book4.xlsx`
-- It always reads from the `final_project.dataset` collection (same DB as the FastAPI app)
+- It always reads from the same database as the FastAPI app (sales_db)
 """
 
-
-MONGO_URI = "mongodb://127.0.0.1:27017"
-DB_NAME = "final_project"
-DATASET_COLLECTION = "dataset"
-EXCEL_PATH = "../data/Book4.xlsx"
+EXCEL_PATH = Path(__file__).parent.parent / "data" / "Book4.xlsx"
 
 
 def ensure_dataset_loaded():
@@ -37,14 +38,13 @@ def ensure_dataset_loaded():
     Ensure that the dataset collection in MongoDB is populated.
     If it's empty, load from the Excel file in ../data/Book4.xlsx.
     """
-    client = MongoClient(MONGO_URI)
-    db = client[DB_NAME]
-    dataset_col = db[DATASET_COLLECTION]
-
     if dataset_col.count_documents({}) > 0:
         return
 
     # Load from Excel and normalize column names
+    if not EXCEL_PATH.exists():
+        raise FileNotFoundError(f"Excel file not found at {EXCEL_PATH}")
+    
     df = pd.read_excel(EXCEL_PATH)
 
     # Try to normalize possible raw column names to logical names
@@ -93,10 +93,6 @@ def ensure_dataset_loaded():
 
 
 def train_and_save_model():
-    client = MongoClient(MONGO_URI)
-    db = client[DB_NAME]
-    dataset_col = db[DATASET_COLLECTION]
-
     # Ensure dataset is present
     ensure_dataset_loaded()
 
@@ -131,7 +127,7 @@ def train_and_save_model():
     dump(model, buffer)
 
     try:
-        db.models.insert_one(
+        models_col.insert_one(
             {
                 "model_name": "sales_classifier",
                 "version": "1.0",

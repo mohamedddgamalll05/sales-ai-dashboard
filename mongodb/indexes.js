@@ -3,7 +3,7 @@
 // Demonstrating Performance Improvements
 // ============================================
 
-use final_project;
+use sales_db;
 
 // ============================================
 // CREATE INDEXES

@@ -3,7 +3,7 @@
 // Demonstrating Insert, Read, Update, Delete
 // ============================================
 
-use final_project;
+use sales_db;
 
 // ============================================
 // CREATE (Insert) Operations

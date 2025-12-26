@@ -3,7 +3,7 @@
 // Reproducing Pandas Statistics
 // ============================================
 
-use final_project;
+use sales_db;
 
 // 1. Total Sales (Sum of all amounts) - Equivalent to pandas: df["amount"].sum()
 db.dataset.aggregate([

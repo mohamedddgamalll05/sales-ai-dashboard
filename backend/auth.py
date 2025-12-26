@@ -7,6 +7,9 @@ from database import users_col
 
 
 def hash_password(password: str) -> str:
+    """
+    Hash a password using SHA256.
+    """
     return hashlib.sha256(password.encode()).hexdigest()
 
 
@@ -14,18 +17,36 @@ def signup_user(name: str, email: str, password: str) -> bool:
     """
     Create a new user document if the email is not already taken.
     """
-    if users_col.find_one({"email": email}):
-        return False
+    try:
+        # Check if user already exists
+        existing_user = users_col.find_one({"email": email})
+        if existing_user:
+            print(f"⚠️ User with email {email} already exists")
+            return False
 
-    users_col.insert_one(
-        {
+        # Create new user document
+        user_doc = {
             "name": name,
             "email": email,
             "password": hash_password(password),
             "created_at": datetime.utcnow(),
         }
-    )
-    return True
+        
+        print(f"📝 Inserting user document: {email}")
+        result = users_col.insert_one(user_doc)
+        
+        if result.inserted_id:
+            print(f"✅ User inserted successfully with _id: {result.inserted_id}")
+            return True
+        else:
+            print(f"❌ Failed to insert user: No inserted_id returned")
+            return False
+            
+    except Exception as e:
+        import traceback
+        print(f"❌ Error in signup_user: {e}")
+        print(traceback.format_exc())
+        raise
 
 
 def login_user(email: str, password: str):

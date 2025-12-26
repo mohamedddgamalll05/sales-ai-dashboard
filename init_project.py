@@ -18,13 +18,20 @@ def main():
     # Step 1: Check MongoDB
     print("Step 1: Checking MongoDB connection...")
     try:
-        from pymongo import MongoClient
-        client = MongoClient("mongodb://127.0.0.1:27017", serverSelectionTimeoutMS=3000)
+        sys.path.insert(0, str(Path(__file__).parent / "backend"))
+        from database import client
         client.admin.command('ping')
         print("✅ MongoDB is running and accessible")
+        
+        # Create indexes
+        print("   Creating indexes...")
+        sys.path.insert(0, str(Path(__file__).parent / "backend"))
+        from indexes import create_indexes
+        create_indexes()
     except Exception as e:
         print(f"❌ MongoDB connection failed: {e}")
         print("   → Please start MongoDB: mongod")
+        print("   → Or check your MONGODB_URI environment variable")
         return False
     print()
     
@@ -37,7 +44,7 @@ def main():
         ensure_dataset_loaded()
         
         # Verify dataset loaded
-        db = client["final_project"]
+        from database import db
         count = db.dataset.count_documents({})
         if count > 0:
             print(f"✅ Dataset loaded successfully: {count} records")
@@ -59,7 +66,8 @@ def main():
         train_and_save_model()
         
         # Verify model saved
-        model_count = db.models.count_documents({})
+        from database import models_col
+        model_count = models_col.count_documents({})
         if model_count > 0:
             print(f"✅ Model trained and saved: {model_count} model(s)")
         else:
@@ -74,8 +82,9 @@ def main():
     
     # Step 4: Final verification
     print("Step 4: Final verification...")
-    user_count = db.users.count_documents({})
-    prediction_count = db.predictions.count_documents({})
+    from database import users_col, predictions_col
+    user_count = users_col.count_documents({})
+    prediction_count = predictions_col.count_documents({})
     
     print(f"✅ Dataset: {count} records")
     print(f"✅ Models: {model_count} model(s)")

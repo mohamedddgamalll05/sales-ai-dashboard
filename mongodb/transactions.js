@@ -3,7 +3,7 @@
 // Demonstrating Atomic Operations
 // ============================================
 
-use final_project;
+use sales_db;
 
 // ============================================
 // TRANSACTION 1: Delete User and All Predictions (SUCCESS SCENARIO)
@@ -20,13 +20,13 @@ try {
   const userIdStr = userId.toString();
   
   // Delete user
-  const deleteUserResult = session.getDatabase("final_project").users.deleteOne(
+  const deleteUserResult = session.getDatabase("sales_db").users.deleteOne(
     { _id: userId },
     { session: session }
   );
   
   // Delete all predictions for this user
-  const deletePredictionsResult = session.getDatabase("final_project").predictions.deleteMany(
+  const deletePredictionsResult = session.getDatabase("sales_db").predictions.deleteMany(
     { user_id: userIdStr },
     { session: session }
   );
@@ -61,14 +61,14 @@ try {
   const userIdStr = userId.toString();
   
   // Delete user
-  session.getDatabase("final_project").users.deleteOne(
+  session.getDatabase("sales_db").users.deleteOne(
     { _id: userId },
     { session: session }
   );
   
   // Intentionally cause an error (e.g., invalid operation)
   // This will trigger rollback
-  session.getDatabase("final_project").predictions.deleteMany(
+  session.getDatabase("sales_db").predictions.deleteMany(
     { user_id: userIdStr, invalidField: { $invalid: "operation" } }, // Invalid query
     { session: session }
   );
@@ -98,7 +98,7 @@ try {
   const userIdStr = userId.toString();
   
   // Insert prediction
-  session.getDatabase("final_project").predictions.insertOne(
+  session.getDatabase("sales_db").predictions.insertOne(
     {
       user_id: userIdStr,
       input_data: { quantity: 100, sales_price: 50.0 },
@@ -110,7 +110,7 @@ try {
   );
   
   // Update user stats (if you have a stats collection)
-  // session.getDatabase("final_project").user_stats.updateOne(
+  // session.getDatabase("sales_db").user_stats.updateOne(
   //   { user_id: userIdStr },
   //   { $inc: { prediction_count: 1 } },
   //   { upsert: true, session: session }
